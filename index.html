@@ -270,9 +270,13 @@ function renderMarketList() {
 
   const minVol = parseFloat(document.getElementById('minVolInput').value) || 0;
 
-  // Filter by min volume and sort alphabetically
+  // Filter by min dollar volume and sort alphabetically
   const sorted = [...cachedMarkets]
-    .filter(m => parseFloat(m.volume_24h_fp || m.volume_24h || 0) >= minVol)
+    .filter(m => {
+      const vol = parseFloat(m.volume_24h_fp || m.volume_24h || 0);
+      const price = parseFloat(m.last_price_dollars || m.last_price || 0);
+      return vol * price >= minVol;
+    })
     .sort((a, b) => (a.title || a.ticker).localeCompare(b.title || b.ticker));
 
   // Find max volume for relative color scaling
@@ -290,6 +294,8 @@ function renderMarketList() {
     const yesDollars = yesSize * parseFloat(yesAsk || 0);
     const noDollars = noSize * parseFloat(noAsk || 0);
     const vol = parseFloat(m.volume_24h_fp || m.volume_24h || 0);
+    const lastP = parseFloat(m.last_price_dollars || m.last_price || 0);
+    const volDollars = Math.round(vol * lastP);
     const ratio = vol / maxVol;
 
     // Color: red (low volume) -> yellow (mid) -> bright green (high)
@@ -318,7 +324,7 @@ function renderMarketList() {
         <span class="amer-tag"><span class="yes">${priceToAmerican(parseFloat(yesAsk))}</span><span style="color:#475569;">/</span><span class="no">${priceToAmerican(parseFloat(noAsk))}</span></span>
       </div>
       <div class="meta" style="margin-top:2px;">
-        <span style="color:#64748b;font-size:11px;">$${yesDollars.toFixed(0)} @ yes · $${noDollars.toFixed(0)} @ no · vol: ${vol.toLocaleString()}</span>
+        <span style="color:#64748b;font-size:11px;">$${yesDollars.toFixed(0)} @ yes · $${noDollars.toFixed(0)} @ no · 24h vol: $${volDollars.toLocaleString()}</span>
       </div>`;
     div.addEventListener('click', () => selectMarket(m.ticker, div));
     ml.appendChild(div);
@@ -390,6 +396,20 @@ function renderStats(m) {
   const noSize = parseFloat(m.yes_bid_size_fp || 0);
   const yesDollars = yesSize * parseFloat(yesAsk || 0);
   const noDollars = noSize * parseFloat(noAsk || 0);
+  const oi = parseFloat(m.open_interest_fp || m.open_interest || 0);
+  const oiDollars = oi * parseFloat(lastPrice || 0);
+  const vol = parseFloat(m.volume_24h_fp || m.volume_24h || 0);
+  const volDollars = vol * parseFloat(lastPrice || 0);
+
+  // Compute book liquidity from orderbook if available
+  let bookLiq = 0;
+  if (lastObData) {
+    const ob = lastObData.orderbook_fp || lastObData.orderbook || {};
+    const yesLevels = ob.yes_dollars || ob.yes || [];
+    const noLevels = ob.no_dollars || ob.no || [];
+    for (const [p, s] of yesLevels) bookLiq += parseFloat(p) * parseFloat(s);
+    for (const [p, s] of noLevels) bookLiq += parseFloat(p) * parseFloat(s);
+  }
 
   document.getElementById('marketTitle').textContent = m.title || m.ticker;
   document.getElementById('marketSubtitle').textContent = m.subtitle || '';
@@ -414,15 +434,18 @@ function renderStats(m) {
     </div>
     <div class="stat-card">
       <div class="label">Open Interest</div>
-      <div class="value">${m.open_interest_fp || m.open_interest || '—'}</div>
+      <div class="value">${oi.toLocaleString()} contracts</div>
+      <div class="american">~$${Math.round(oiDollars).toLocaleString()}</div>
     </div>
     <div class="stat-card">
       <div class="label">24h Volume</div>
-      <div class="value">${m.volume_24h_fp || m.volume_24h || '—'}</div>
+      <div class="value">${vol.toLocaleString()} contracts</div>
+      <div class="american">~$${Math.round(volDollars).toLocaleString()}</div>
     </div>
     <div class="stat-card">
-      <div class="label">Liquidity</div>
-      <div class="value">${m.liquidity_dollars ? '$' + parseFloat(m.liquidity_dollars).toFixed(0) : '—'}</div>
+      <div class="label">Book Liquidity</div>
+      <div class="value">$${Math.round(bookLiq).toLocaleString()}</div>
+      <div class="american">total $ on book</div>
     </div>
   `;
 }
