@@ -100,6 +100,10 @@
     </div>
     <div class="panel-section" style="padding-bottom: 8px;">
       <label>Markets</label>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+        <span style="font-size:11px;color:#64748b;">Min vol $</span>
+        <input id="minVolInput" type="number" value="100" min="0" step="50" style="width:70px;background:#1e293b;border:1px solid #334155;color:#e0e0e0;padding:4px 8px;border-radius:4px;font-size:12px;">
+      </div>
     </div>
     <div class="market-list" id="marketList">
       <div style="padding: 20px; color: #475569; font-size: 13px; text-align: center;">Select a sport and event to browse markets</div>
@@ -264,10 +268,12 @@ function renderMarketList() {
   const ml = document.getElementById('marketList');
   ml.innerHTML = '';
 
-  // Sort alphabetically by title
-  const sorted = [...cachedMarkets].sort((a, b) =>
-    (a.title || a.ticker).localeCompare(b.title || b.ticker)
-  );
+  const minVol = parseFloat(document.getElementById('minVolInput').value) || 0;
+
+  // Filter by min volume and sort alphabetically
+  const sorted = [...cachedMarkets]
+    .filter(m => parseFloat(m.volume_24h_fp || m.volume_24h || 0) >= minVol)
+    .sort((a, b) => (a.title || a.ticker).localeCompare(b.title || b.ticker));
 
   // Find max volume for relative color scaling
   const volumes = sorted.map(m => parseFloat(m.volume_24h_fp || m.volume_24h || 0));
@@ -482,6 +488,11 @@ document.addEventListener('visibilitychange', () => {
     refreshTimer = setInterval(() => refreshData(selectedTicker), 3000);
     setStatus('Live', true);
   }
+});
+
+// --- Min volume filter ---
+document.getElementById('minVolInput').addEventListener('input', () => {
+  if (cachedMarkets.length) renderMarketList();
 });
 
 // --- Init ---

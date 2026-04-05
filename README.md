@@ -9,6 +9,7 @@ Live sports odds dashboard that pulls data from the [Kalshi Elections API](https
 - **Dual odds display**: Cents and American odds shown side-by-side everywhere (e.g., `YES 19¢` with `+426/-488` color-coded)
 - **Auto-refresh**: Orderbook refreshes every 3 seconds when viewing a market; pauses automatically when tab is hidden
 - **Liquidity color coding**: Markets color-coded red → yellow → green by 24h volume relative to other markets in the same event — high-volume players pop, thin markets are obvious
+- **Minimum volume filter**: Adjustable min volume threshold (default $100) to hide dead markets
 - **Alphabetized markets**: Player markets sorted A-Z within each event for easy scanning
 - **Dollar liquidity**: Dollar amounts available at each price level in the orderbook, plus top-of-book liquidity in the market list
 - **Event times**: Game times parsed from tickers and displayed in ET
