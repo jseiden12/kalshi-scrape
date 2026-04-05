@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalshi Sports Odds Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0e17; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; }
+
+  header { background: #111827; padding: 12px 20px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #1e293b; }
+  header h1 { font-size: 18px; font-weight: 600; color: #f0f0f0; }
+  header .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  header .status { font-size: 12px; color: #64748b; flex: 1; }
+  .container { display: flex; flex: 1; overflow: hidden; }
+
+  /* Left panel */
+  .panel-left { width: 360px; min-width: 360px; background: #111827; border-right: 1px solid #1e293b; display: flex; flex-direction: column; overflow: hidden; }
+  .panel-section { padding: 12px 16px; border-bottom: 1px solid #1e293b; }
+  .panel-section label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 6px; display: block; }
+  .panel-section select { width: 100%; background: #1e293b; border: 1px solid #334155; color: #e0e0e0; padding: 8px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .panel-section select:focus { outline: none; border-color: #3b82f6; }
+  .panel-section select optgroup { color: #94a3b8; font-style: normal; }
+
+  .market-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .market-item { padding: 10px 12px; border-radius: 6px; cursor: pointer; margin-bottom: 4px; transition: background 0.15s; border: 1px solid transparent; }
+  .market-item:hover { background: #1e293b; }
+  .market-item.active { background: #1e3a5f; border-color: #3b82f6; }
+  .market-item .name { font-size: 13px; font-weight: 500; }
+  .market-item .meta { font-size: 12px; color: #94a3b8; margin-top: 3px; display: flex; gap: 12px; }
+  .market-item .meta .yes { color: #22c55e; font-weight: 500; }
+  .market-item .meta .vol { color: #64748b; }
+
+  /* Right panel */
+  .panel-right { flex: 1; display: flex; flex-direction: column; padding: 24px; overflow-y: auto; }
+  .panel-right .empty { display: flex; align-items: center; justify-content: center; flex: 1; color: #475569; font-size: 15px; flex-direction: column; gap: 8px; }
+
+  .market-header { margin-bottom: 20px; }
+  .market-header h2 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .market-header .subtitle { font-size: 13px; color: #64748b; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat-card { background: #111827; border: 1px solid #1e293b; border-radius: 8px; padding: 12px 16px; }
+  .stat-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 4px; }
+  .stat-card .value { font-size: 18px; font-weight: 600; }
+  .stat-card .value.yes { color: #22c55e; }
+  .stat-card .value.no { color: #ef4444; }
+  .market-item .meta .no { color: #ef4444; font-weight: 500; }
+  .market-item .amer-tag { margin-left: auto; font-size: 11px; font-weight: 600; }
+  .stat-card .american { font-size: 13px; color: #94a3b8; margin-top: 2px; }
+
+  .orderbook-container { flex: 1; }
+  .orderbook-container h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #94a3b8; }
+  .orderbook { display: flex; gap: 24px; }
+  .ob-side { flex: 1; }
+  .ob-header { display: flex; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #475569; padding: 0 8px 8px; border-bottom: 1px solid #1e293b; margin-bottom: 6px; }
+  .ob-header .h-price { width: 80px; }
+  .ob-header .h-size { flex: 1; text-align: right; }
+  .ob-header .h-odds { width: 70px; text-align: right; }
+  .ob-header .h-shares { width: 60px; text-align: right; }
+  .ob-side.yes .ob-title { color: #22c55e; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .ob-side.no .ob-title { color: #ef4444; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+
+  .ob-row { display: flex; align-items: center; margin-bottom: 2px; font-size: 13px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; position: relative; height: 28px; border-radius: 4px; overflow: hidden; }
+  .ob-row .bar { position: absolute; top: 0; bottom: 0; opacity: 0.12; border-radius: 4px; right: 0; }
+  .ob-side.yes .ob-row .bar { background: #22c55e; }
+  .ob-side.no .ob-row .bar { background: #ef4444; }
+  .ob-row span { position: relative; z-index: 1; padding: 0 8px; }
+  .ob-row .price { width: 80px; font-weight: 500; }
+  .ob-row .shares { width: 60px; text-align: right; color: #94a3b8; }
+  .ob-row .size { flex: 1; text-align: right; color: #94a3b8; }
+  .ob-row .odds-col { width: 70px; text-align: right; color: #64748b; font-size: 11px; }
+
+  .ob-spread { text-align: center; padding: 12px; font-size: 13px; color: #64748b; background: #0f1729; border-radius: 6px; margin: 12px 0; border: 1px solid #1e293b; }
+
+  .refresh-indicator { font-size: 11px; color: #334155; text-align: right; margin-top: 12px; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Kalshi Sports Odds</h1>
+  <div class="dot" id="statusDot"></div>
+  <div class="status" id="statusText">Loading...</div>
+</header>
+
+<div class="container">
+  <div class="panel-left">
+    <div class="panel-section">
+      <label>Sport / Market Type</label>
+      <select id="seriesSelect"><option value="">Loading...</option></select>
+    </div>
+    <div class="panel-section">
+      <label>Event / Game</label>
+      <select id="eventSelect"><option value="">Select a series first</option></select>
+    </div>
+    <div class="panel-section" style="padding-bottom: 8px;">
+      <label>Markets</label>
+    </div>
+    <div class="market-list" id="marketList">
+      <div style="padding: 20px; color: #475569; font-size: 13px; text-align: center;">Select a sport and event to browse markets</div>
+    </div>
+  </div>
+
+  <div class="panel-right">
+    <div class="empty" id="emptyState">
+      <div style="font-size: 32px; opacity: 0.3;">&#x1F3AF;</div>
+      <div>Select a market to view live orderbook</div>
+    </div>
+    <div id="marketDetail" style="display:none;">
+      <div class="market-header">
+        <h2 id="marketTitle"></h2>
+        <div class="subtitle" id="marketSubtitle"></div>
+      </div>
+      <div class="stats-row" id="statsRow"></div>
+      <div class="orderbook-container">
+        <div class="orderbook" id="orderbook"></div>
+        <div id="spreadBar"></div>
+      </div>
+      <div class="refresh-indicator" id="refreshIndicator"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let refreshTimer = null;
+let selectedTicker = null;
+let lastMarketData = null;
+let lastObData = null;
+
+async function api(path) {
+  const resp = await fetch(path);
+  if (!resp.ok) throw new Error(`API ${resp.status}`);
+  return resp.json();
+}
+
+function setStatus(text, ok = true) {
+  document.getElementById('statusText').textContent = text;
+  document.getElementById('statusDot').style.background = ok ? '#22c55e' : '#eab308';
+}
+
+function priceToAmerican(price) {
+  if (!price || price <= 0 || price >= 1) return '—';
+  if (price >= 0.5) {
+    return '-' + Math.round(price / (1 - price) * 100);
+  } else {
+    return '+' + Math.round((1 - price) / price * 100);
+  }
+}
+
+function formatCents(dollarPrice) {
+  if (!dollarPrice || dollarPrice === '—') return '—';
+  const p = parseFloat(dollarPrice);
+  if (isNaN(p) || p <= 0) return '—';
+  return `${(p * 100).toFixed(0)}¢`;
+}
+
+function formatDual(dollarPrice) {
+  if (!dollarPrice || dollarPrice === '—') return '—';
+  const p = parseFloat(dollarPrice);
+  if (isNaN(p) || p <= 0) return '—';
+  return `${(p * 100).toFixed(0)}¢ (${priceToAmerican(p)})`;
+}
+
+// --- Parse event time from ticker ---
+function formatEventLabel(event) {
+  const label = event.sub_title || event.title;
+  // Ticker format: KXMLBHR-26APR042138SEALAA -> 2138 is the time (HHMM in ET)
+  const match = event.event_ticker.match(/\d{2}[A-Z]{3}\d{2}(\d{4})/);
+  if (match) {
+    const hhmm = match[1];
+    let h = parseInt(hhmm.substring(0, 2));
+    const m = hhmm.substring(2);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    if (h > 12) h -= 12;
+    if (h === 0) h = 12;
+    return `${label} · ${h}:${m} ${ampm} ET`;
+  }
+  return label;
+}
+
+// --- Load sports series ---
+async function loadSports() {
+  try {
+    const data = await api('/api/sports');
+    const sel = document.getElementById('seriesSelect');
+    sel.innerHTML = '<option value="">-- Choose --</option>';
+    for (const [sport, series] of Object.entries(data.sports)) {
+      const group = document.createElement('optgroup');
+      group.label = sport;
+      for (const [ticker, name] of Object.entries(series)) {
+        const opt = document.createElement('option');
+        opt.value = ticker;
+        opt.textContent = name;
+        group.appendChild(opt);
+      }
+      sel.appendChild(group);
+    }
+    setStatus('Ready');
+  } catch (e) {
+    setStatus('Failed to load', false);
+  }
+}
+
+// --- Series change -> load events ---
+document.getElementById('seriesSelect').addEventListener('change', async function() {
+  const ticker = this.value;
+  const eventSel = document.getElementById('eventSelect');
+  document.getElementById('marketList').innerHTML = '';
+  clearDetail();
+  if (!ticker) { eventSel.innerHTML = '<option value="">Select a series first</option>'; return; }
+
+  eventSel.innerHTML = '<option value="">Loading...</option>';
+  try {
+    setStatus('Loading events...');
+    const data = await api(`/api/events?series_ticker=${ticker}&limit=50`);
+    const events = data.events || [];
+    eventSel.innerHTML = '<option value="">-- Choose a game --</option>';
+    for (const e of events) {
+      const opt = document.createElement('option');
+      opt.value = e.event_ticker;
+      opt.textContent = formatEventLabel(e);
+      eventSel.appendChild(opt);
+    }
+    setStatus(`${events.length} events`);
+  } catch (e) {
+    eventSel.innerHTML = '<option value="">No events found</option>';
+    setStatus('No events', false);
+  }
+});
+
+// --- Event change -> load markets ---
+let cachedMarkets = [];
+document.getElementById('eventSelect').addEventListener('change', async function() {
+  const ticker = this.value;
+  const ml = document.getElementById('marketList');
+  ml.innerHTML = '';
+  cachedMarkets = [];
+  clearDetail();
+  if (!ticker) return;
+
+  try {
+    setStatus('Loading markets...');
+    const data = await api(`/api/markets?event_ticker=${ticker}&limit=100`);
+    cachedMarkets = data.markets || [];
+    if (cachedMarkets.length === 0) {
+      ml.innerHTML = '<div style="padding:20px;color:#475569;font-size:13px;text-align:center;">No markets found</div>';
+      setStatus('No markets');
+      return;
+    }
+    renderMarketList();
+    setStatus(`${cachedMarkets.length} markets`);
+  } catch (e) {
+    ml.innerHTML = '<div style="padding:20px;color:#ef4444;font-size:13px;text-align:center;">Failed to load</div>';
+    setStatus('Error', false);
+  }
+});
+
+function renderMarketList() {
+  const ml = document.getElementById('marketList');
+  ml.innerHTML = '';
+  for (const m of cachedMarkets) {
+    const div = document.createElement('div');
+    div.className = 'market-item' + (m.ticker === selectedTicker ? ' active' : '');
+    div.dataset.ticker = m.ticker;
+    const yesAsk = m.yes_ask_dollars || m.yes_ask;
+    const noAsk = m.no_ask_dollars || m.no_ask;
+    const yesSize = parseFloat(m.yes_ask_size_fp || 0);
+    const noSize = parseFloat(m.yes_bid_size_fp || 0);
+    const yesDollars = yesSize * parseFloat(yesAsk || 0);
+    const noDollars = noSize * parseFloat(noAsk || 0);
+    div.innerHTML = `
+      <div class="name">${m.title || m.ticker}</div>
+      <div class="meta">
+        <span class="yes">YES ${formatCents(yesAsk)}</span>
+        <span style="color:#475569;">·</span>
+        <span class="no">NO ${formatCents(noAsk)}</span>
+        <span class="amer-tag"><span class="yes">${priceToAmerican(parseFloat(yesAsk))}</span><span style="color:#475569;">/</span><span class="no">${priceToAmerican(parseFloat(noAsk))}</span></span>
+      </div>
+      <div class="meta" style="margin-top:2px;">
+        <span style="color:#64748b;font-size:11px;">$${yesDollars.toFixed(0)} @ yes · $${noDollars.toFixed(0)} @ no</span>
+      </div>`;
+    div.addEventListener('click', () => selectMarket(m.ticker, div));
+    ml.appendChild(div);
+  }
+}
+
+function refreshMarketListOdds() {
+  if (cachedMarkets.length) renderMarketList();
+}
+
+// --- Market detail ---
+function clearDetail() {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  selectedTicker = null;
+  lastMarketData = null;
+  lastObData = null;
+  document.getElementById('emptyState').style.display = 'flex';
+  document.getElementById('marketDetail').style.display = 'none';
+}
+
+async function selectMarket(ticker, el) {
+  document.querySelectorAll('.market-item').forEach(e => e.classList.remove('active'));
+  if (el) el.classList.add('active');
+  selectedTicker = ticker;
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('marketDetail').style.display = 'block';
+
+  await loadMarketDetail(ticker);
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => {
+    if (selectedTicker === ticker) refreshData(ticker);
+  }, 3000);
+}
+
+async function loadMarketDetail(ticker) {
+  try {
+    const [mResp, obResp] = await Promise.all([
+      api(`/api/markets/${ticker}`),
+      api(`/api/markets/${ticker}/orderbook`)
+    ]);
+    lastMarketData = mResp.market;
+    lastObData = obResp;
+    renderStats(lastMarketData);
+    renderOrderbook(lastObData);
+    updateTime();
+    setStatus('Live', true);
+  } catch (e) {
+    setStatus('Failed to load market', false);
+  }
+}
+
+async function refreshData(ticker) {
+  try {
+    const obResp = await api(`/api/markets/${ticker}/orderbook`);
+    lastObData = obResp;
+    renderOrderbook(obResp);
+    updateTime();
+    setStatus('Live', true);
+  } catch (e) {
+    setStatus('Refresh failed', false);
+  }
+}
+
+function renderStats(m) {
+  const yesAsk = m.yes_ask_dollars || m.yes_ask;
+  const noAsk = m.no_ask_dollars || m.no_ask;
+  const lastPrice = m.last_price_dollars || m.last_price;
+  const yesSize = parseFloat(m.yes_ask_size_fp || 0);
+  const noSize = parseFloat(m.yes_bid_size_fp || 0);
+  const yesDollars = yesSize * parseFloat(yesAsk || 0);
+  const noDollars = noSize * parseFloat(noAsk || 0);
+
+  document.getElementById('marketTitle').textContent = m.title || m.ticker;
+  document.getElementById('marketSubtitle').textContent = m.subtitle || '';
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card">
+      <div class="label">Buy Yes</div>
+      <div class="value yes">${formatCents(yesAsk)}</div>
+      <div class="american" style="color:#22c55e;">${priceToAmerican(parseFloat(yesAsk))}</div>
+      <div class="american">$${yesDollars.toFixed(0)} available</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Buy No</div>
+      <div class="value no">${formatCents(noAsk)}</div>
+      <div class="american" style="color:#ef4444;">${priceToAmerican(parseFloat(noAsk))}</div>
+      <div class="american">$${noDollars.toFixed(0)} available</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Last Trade</div>
+      <div class="value">${formatCents(lastPrice)}</div>
+      <div class="american">${priceToAmerican(parseFloat(lastPrice))}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Open Interest</div>
+      <div class="value">${m.open_interest_fp || m.open_interest || '—'}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">24h Volume</div>
+      <div class="value">${m.volume_24h_fp || m.volume_24h || '—'}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Liquidity</div>
+      <div class="value">${m.liquidity_dollars ? '$' + parseFloat(m.liquidity_dollars).toFixed(0) : '—'}</div>
+    </div>
+  `;
+}
+
+function renderOrderbook(obData) {
+  const ob = obData.orderbook_fp || obData.orderbook || {};
+  const yesLevels = (ob.yes_dollars || ob.yes || []).map(([p, s]) => [parseFloat(p), parseFloat(s)]);
+  const noLevels = (ob.no_dollars || ob.no || []).map(([p, s]) => [parseFloat(p), parseFloat(s)]);
+
+  yesLevels.sort((a, b) => b[0] - a[0]);
+  noLevels.sort((a, b) => b[0] - a[0]);
+
+  const maxSize = Math.max(...yesLevels.map(l => l[1]), ...noLevels.map(l => l[1]), 1);
+
+  function makeRows(levels, side) {
+    return levels.map(([p, s]) => {
+      const dollars = p * s;
+      const pct = (s / maxSize * 100).toFixed(0);
+      return `<div class="ob-row">
+        <div class="bar" style="width:${pct}%"></div>
+        <span class="price">${(p * 100).toFixed(0)}¢</span>
+        <span class="odds-col">${priceToAmerican(p)}</span>
+        <span class="shares">${s.toLocaleString()}</span>
+        <span class="size">$${dollars.toFixed(0)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  const bestYes = yesLevels.length ? yesLevels[0][0] : null;
+  const bestNo = noLevels.length ? noLevels[0][0] : null;
+  let spreadHtml = '';
+  if (bestYes && bestNo) {
+    const spread = ((1 - bestYes - bestNo) * 100).toFixed(1);
+    spreadHtml = `<div class="ob-spread">Spread: ${spread}¢ &nbsp;|&nbsp; Best Yes: ${formatDual(bestYes.toFixed(4))} &nbsp;|&nbsp; Best No: ${formatDual(bestNo.toFixed(4))}</div>`;
+  }
+
+  document.getElementById('orderbook').innerHTML = `
+    <div class="ob-side yes">
+      <div class="ob-title">Yes Side</div>
+      <div class="ob-header"><span class="h-price">Price</span><span class="h-odds">American</span><span class="h-shares">Shares</span><span class="h-size">Dollars</span></div>
+      ${makeRows(yesLevels, 'yes') || '<div style="color:#475569;font-size:13px;padding:8px;">No bids</div>'}
+    </div>
+    <div class="ob-side no">
+      <div class="ob-title">No Side</div>
+      <div class="ob-header"><span class="h-price">Price</span><span class="h-odds">American</span><span class="h-shares">Shares</span><span class="h-size">Dollars</span></div>
+      ${makeRows(noLevels, 'no') || '<div style="color:#475569;font-size:13px;padding:8px;">No bids</div>'}
+    </div>
+  `;
+  document.getElementById('spreadBar').innerHTML = spreadHtml;
+}
+
+function updateTime() {
+  document.getElementById('refreshIndicator').textContent = `Updated ${new Date().toLocaleTimeString()} · auto-refresh 3s`;
+}
+
+// --- Pause when tab not visible ---
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+    setStatus('Paused (tab hidden)', false);
+  } else if (selectedTicker) {
+    refreshData(selectedTicker);
+    refreshTimer = setInterval(() => refreshData(selectedTicker), 3000);
+    setStatus('Live', true);
+  }
+});
+
+// --- Init ---
+loadSports();
+</script>
+</body>
+</html>
