@@ -263,7 +263,17 @@ document.getElementById('eventSelect').addEventListener('change', async function
 function renderMarketList() {
   const ml = document.getElementById('marketList');
   ml.innerHTML = '';
-  for (const m of cachedMarkets) {
+
+  // Sort alphabetically by title
+  const sorted = [...cachedMarkets].sort((a, b) =>
+    (a.title || a.ticker).localeCompare(b.title || b.ticker)
+  );
+
+  // Find max volume for relative color scaling
+  const volumes = sorted.map(m => parseFloat(m.volume_24h_fp || m.volume_24h || 0));
+  const maxVol = Math.max(...volumes, 1);
+
+  for (const m of sorted) {
     const div = document.createElement('div');
     div.className = 'market-item' + (m.ticker === selectedTicker ? ' active' : '');
     div.dataset.ticker = m.ticker;
@@ -273,6 +283,26 @@ function renderMarketList() {
     const noSize = parseFloat(m.yes_bid_size_fp || 0);
     const yesDollars = yesSize * parseFloat(yesAsk || 0);
     const noDollars = noSize * parseFloat(noAsk || 0);
+    const vol = parseFloat(m.volume_24h_fp || m.volume_24h || 0);
+    const ratio = vol / maxVol;
+
+    // Color: red (low volume) -> yellow (mid) -> bright green (high)
+    let borderColor;
+    if (ratio < 0.5) {
+      const t = ratio * 2; // 0-1 within first half
+      const r = Math.round(220 - 100 * t);
+      const g = Math.round(50 + 170 * t);
+      const b = Math.round(50);
+      borderColor = `rgb(${r},${g},${b})`;
+    } else {
+      const t = (ratio - 0.5) * 2; // 0-1 within second half
+      const r = Math.round(120 - 100 * t);
+      const g = Math.round(220 + 35 * t);
+      const b = Math.round(50 + 30 * t);
+      borderColor = `rgb(${r},${g},${b})`;
+    }
+
+    div.style.borderLeft = `4px solid ${borderColor}`;
     div.innerHTML = `
       <div class="name">${m.title || m.ticker}</div>
       <div class="meta">
@@ -282,7 +312,7 @@ function renderMarketList() {
         <span class="amer-tag"><span class="yes">${priceToAmerican(parseFloat(yesAsk))}</span><span style="color:#475569;">/</span><span class="no">${priceToAmerican(parseFloat(noAsk))}</span></span>
       </div>
       <div class="meta" style="margin-top:2px;">
-        <span style="color:#64748b;font-size:11px;">$${yesDollars.toFixed(0)} @ yes · $${noDollars.toFixed(0)} @ no</span>
+        <span style="color:#64748b;font-size:11px;">$${yesDollars.toFixed(0)} @ yes · $${noDollars.toFixed(0)} @ no · vol: ${vol.toLocaleString()}</span>
       </div>`;
     div.addEventListener('click', () => selectMarket(m.ticker, div));
     ml.appendChild(div);

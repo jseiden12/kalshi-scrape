@@ -6,9 +6,12 @@ Live sports odds dashboard that pulls data from the [Kalshi Elections API](https
 
 - **Multi-sport support**: MLB (HR, moneyline, spread, hits, strikeouts, RBIs, total bases), NBA, NHL, Soccer (EPL, La Liga, Serie A, Bundesliga, UCL, UEL, MLS), UFC/MMA, Tennis, Golf
 - **Live orderbook**: Full depth-of-book with price, American odds, shares, and dollar amounts per level
-- **Dual odds display**: Cents and American odds shown side-by-side everywhere
-- **Auto-refresh**: Orderbook refreshes every 3 seconds when viewing a market; pauses when tab is hidden
-- **Liquidity view**: Dollar amounts available at each price level, plus top-of-book liquidity in market list
+- **Dual odds display**: Cents and American odds shown side-by-side everywhere (e.g., `YES 19¢` with `+426/-488` color-coded)
+- **Auto-refresh**: Orderbook refreshes every 3 seconds when viewing a market; pauses automatically when tab is hidden
+- **Liquidity color coding**: Markets color-coded red → yellow → green by 24h volume relative to other markets in the same event — high-volume players pop, thin markets are obvious
+- **Alphabetized markets**: Player markets sorted A-Z within each event for easy scanning
+- **Dollar liquidity**: Dollar amounts available at each price level in the orderbook, plus top-of-book liquidity in the market list
+- **Event times**: Game times parsed from tickers and displayed in ET
 
 ## Quick Start
 
